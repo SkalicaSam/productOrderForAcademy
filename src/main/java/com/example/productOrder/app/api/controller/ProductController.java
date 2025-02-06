@@ -1,14 +1,16 @@
-package com.example.productOrder.app;
+package com.example.productOrder.app.api.controller;
 
+import com.example.productOrder.app.api.dto.ProductDTOAddProduct;
+import com.example.productOrder.app.api.dto.ProductDTOAmount;
+import com.example.productOrder.app.api.dto.ProductDTOEdit;
+import com.example.productOrder.app.api.service.ProductService;
+import com.example.productOrder.app.api.model.Product;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("product")

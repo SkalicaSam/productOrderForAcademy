@@ -1,7 +1,8 @@
-package com.example.productOrder.app;
+package com.example.productOrder.app.api.service;
 
 import com.example.productOrder.app.api.exception.InternalErrorException;
-import io.swagger.v3.oas.models.security.SecurityScheme;
+import com.example.productOrder.app.api.model.Product;
+import com.example.productOrder.app.api.repository.ProductRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;

@@ -1,4 +1,4 @@
-package com.example.productOrder.app;
+package com.example.productOrder.app.api.dto;
 
 public class ProductDTOEdit {
     private String name;

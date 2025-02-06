@@ -1,6 +1,12 @@
 package com.example.productOrder.app;
 
+import com.example.productOrder.app.api.dto.ProductDTOAddProduct;
+import com.example.productOrder.app.api.dto.ProductDTOAmount;
+import com.example.productOrder.app.api.dto.ProductDTOEdit;
 import com.example.productOrder.app.api.exception.ProductNotFoundException;
+import com.example.productOrder.app.api.model.Product;
+import com.example.productOrder.app.api.repository.ProductRepository;
+import com.example.productOrder.app.api.service.ProductService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class ProductIntegrationTransactionalTest {
+public class ProductIntegrationTest {
 
 
     private Integer productId;
@@ -33,12 +39,12 @@ public class ProductIntegrationTransactionalTest {
     private TestRestTemplate restTemplate;
 
     @Autowired
-    public ProductIntegrationTransactionalTest(ProductService productService) {
+    public ProductIntegrationTest(ProductService productService) {
         this.productService = productService;
     }
 
     @Test
-    void addProduct_shouldReturnProduct201CREATED_whenSendingDataAreCorect() {
+    void addProduct_shouldReturnProduct201CREATED_whenSendingDataAreCorrect() {
 
         final ProductDTOAddProduct addRequest1 = new ProductDTOAddProduct(
                 "projector",

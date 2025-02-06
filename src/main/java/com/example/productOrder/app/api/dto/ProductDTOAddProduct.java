@@ -1,36 +1,19 @@
-package com.example.productOrder.app;
+package com.example.productOrder.app.api.dto;
 
-
-import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 
-import java.math.BigDecimal;
-
-@Entity
-@Table(name = "products")
-public class Product {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
-
-    @Column(nullable = false)
+public class ProductDTOAddProduct {
     private String name;
     private String description;
     private Integer amount;
     @Min(value = 1, message = "Price must be greater than zero")
     private Integer price;
 
-//    @DecimalMin(value = "0.05", inclusive = true, message = "Price must be at least 0.05")
-//    private BigDecimal price;
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
+    public ProductDTOAddProduct(String name, String description, Integer amount, Integer price) {
+        this.name = name;
+        this.description = description;
+        this.amount = amount;
+        this.price = price;
     }
 
     public String getName() {
@@ -57,7 +40,9 @@ public class Product {
         this.amount = amount;
     }
 
-    public Integer getPrice() {return price; }
+    public Integer getPrice() {
+        return price;
+    }
 
     public void setPrice(Integer price) {
         this.price = price;

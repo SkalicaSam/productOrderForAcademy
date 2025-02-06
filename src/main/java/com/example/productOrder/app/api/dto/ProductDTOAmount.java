@@ -1,4 +1,4 @@
-package com.example.productOrder.app;
+package com.example.productOrder.app.api.dto;
 
 public class ProductDTOAmount {
     private Integer amount;
