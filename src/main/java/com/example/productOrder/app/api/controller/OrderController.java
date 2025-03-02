@@ -1,6 +1,5 @@
 package com.example.productOrder.app.api.controller;
 
-import com.example.productOrder.app.api.dto.ProductDTOAmount;
 import com.example.productOrder.app.api.dto.shoppingList.AddToOrderRequestDTO;
 import com.example.productOrder.app.api.model.Order;
 import com.example.productOrder.app.api.service.OrderService;
@@ -22,22 +21,13 @@ public class OrderController {
 //        return orderService.createOrder(order);
     }
 
+
     // Pridanie produktu do objednávky
     @PostMapping("/{orderId}/addProductDTO")
     public ResponseEntity<String> addProductToOrderDTO(
             @PathVariable Integer orderId,
             @RequestBody AddToOrderRequestDTO addToOrderRequestDTO) {
         orderService.addProductToOrderWithDTO(orderId, addToOrderRequestDTO);
-        return ResponseEntity.ok("Product added to order");
-    }
-
-    // Pridanie produktu do objednávky
-    @PostMapping("/{orderId}/addProduct")
-    public ResponseEntity<String> addProductToOrder(
-            @PathVariable Integer orderId,
-            @RequestParam Integer productId,
-            @RequestParam Integer amount) {
-        orderService.addProductToOrder(orderId, productId, amount);
         return ResponseEntity.ok("Product added to order");
     }
 
@@ -63,3 +53,14 @@ public class OrderController {
 
     // Ďalšie API metódy podľa potreby
 }
+
+
+//    // Pridanie produktu do objednávky
+//    @PostMapping("/{orderId}/addProduct")
+//    public ResponseEntity<String> addProductToOrder(
+//            @PathVariable Integer orderId,
+//            @RequestParam Integer productId,
+//            @RequestParam Integer amount) {
+//        orderService.addProductToOrder(orderId, productId, amount);
+//        return ResponseEntity.ok("Product added to order");
+//    }

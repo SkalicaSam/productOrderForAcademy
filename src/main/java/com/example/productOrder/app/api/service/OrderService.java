@@ -17,80 +17,45 @@ import java.util.Optional;
 @Service
 public class OrderService {
 
-    @Autowired
-    private OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
+    private final OrderProductRepository orderProductRepository;
+    private final ProductRepository productRepository;
 
     @Autowired
-    private OrderProductRepository orderProductRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
-
     public OrderService(OrderRepository orderRepository, OrderProductRepository orderProductRepository, ProductRepository productRepository) {
         this.orderRepository = orderRepository;
         this.orderProductRepository = orderProductRepository;
         this.productRepository = productRepository;
     }
 
+
     public Order createOrder(Order order) {
         if (order.getOrderProducts() != null) {
-            // Check if there is enough stock for all items
-            for (OrderProduct item : order.getOrderProducts()) {
-                Product product = productRepository.findById(item.getProductId()).orElseThrow(() -> new RuntimeException("Product not found"));
-                if (product.getAmount() < item.getAmount()) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for product ID " + product.getId());
-                }
-            }
-
-            // Update product amounts if there is enough stock
-            order.getOrderProducts().forEach(item ->{
-
-                Product product = productRepository.findById(item.getProductId()).orElseThrow(() -> new RuntimeException("Product not found"));
-//                if(product.getAmount() < item.getAmount()){
-//                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for product ID " + product.getId());
-//                }
-                product.setAmount(product.getAmount() - item.getAmount());
-                productRepository.save(product);
-                item.setOrder(order);
-            } );
+            checkSufficientProductQuantity(order);
+            updateProductAmountWhenOrdered(order);
         }
-//        if (order.getShoppingList() != null) {
-//            order.getShoppingList().forEach(item -> item.setOrder(order));
-//        }
         order.setPaid(false);
         return orderRepository.save(order);
     }
 
-    // this is not using. We are using addProductToOrderDTO !!!
-    // Pridanie produktu do objednávky
-    public void addProductToOrder(Integer orderId, Integer productId, Integer amount) {
-        Order order = orderRepository.findById(Long.valueOf(orderId))
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-        // Hledáme, zda už produkt v objednávce existuje
-        Optional<OrderProduct> existingOrderProduct = order.getOrderProducts().stream()
-                .filter(op -> op.getProductId().equals(productId))
-                .findFirst();
-
-        if (existingOrderProduct.isPresent()) {
-            // Produkt už existuje – aktualizujeme množství
-            OrderProduct orderProduct = existingOrderProduct.get();
-            orderProduct.setAmount(orderProduct.getAmount() + amount);
-            orderProductRepository.save(orderProduct);
-        } else {
-            // Produkt neexistuje – přidáme nový záznam
-            OrderProduct orderProduct = new OrderProduct(productId, amount, order);
-            order.addProduct(orderProduct);
-            orderProductRepository.save(orderProduct);
+    private void checkSufficientProductQuantity(Order order){
+        for (OrderProduct item : order.getOrderProducts()) {
+            Product product = productRepository.findById(item.getProductId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product with ID " + item.getProductId() + " not found"));
+            if (product.getAmount() < item.getAmount()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for product ID " + product.getId());
+            }
         }
-
-
-//        OrderProduct orderProduct = new OrderProduct( productId, amount, order);
-//        order.addProduct(orderProduct);  // Pridáme produkt do objednávky
-//        orderProductRepository.save(orderProduct);  // Uložíme produkt
     }
 
+    private void updateProductAmountWhenOrdered(Order order) {
+        order.getOrderProducts().forEach(item ->{
+            Product product = productRepository.findById(item.getProductId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product with ID " + item.getProductId() + " not found"));
+            product.setAmount(product.getAmount() - item.getAmount());
+            productRepository.save(product);
+            item.setOrder(order);
+        } );
+    }
 
-    // Odstránenie produktu z objednávky
     public void removeProductFromOrder(Long orderId, Long productId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -98,8 +63,8 @@ public class OrderService {
                 .filter(op -> op.getProductId().equals(productId))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Product not found in order"));
-        order.removeProduct(orderProduct);  // Odstránime produkt z objednávky
-        orderProductRepository.delete(orderProduct);  // Zmažeme produkt
+        order.removeProduct(orderProduct);
+        orderProductRepository.delete(orderProduct);
     }
 
     public Order getOrderById(Long orderId) {
@@ -107,53 +72,92 @@ public class OrderService {
     }
 
     public void deleteOrder(Long orderId) {
-        orderRepository.deleteById(orderId);  // Tento príkaz vymaže objednávku a jej položky (vďaka CascadeType.ALL)
+        orderRepository.deleteById(orderId);
     }
 
-
     public void addProductToOrderWithDTO(Integer orderId, AddToOrderRequestDTO addToOrderRequestDTO) {
+        Order order = findOrderById(orderId);
+        checkOrderStatus(order);
+        Product product = findProductById(addToOrderRequestDTO.getProductId());
+        checkSufficientProductQuantity(product, addToOrderRequestDTO.getAmount());
+        updateOrCreateOrderItem(order, product, addToOrderRequestDTO.getAmount());
+        updateProductQuantity(product, addToOrderRequestDTO.getAmount());
+    }
 
-        Order order = orderRepository.findById(Long.valueOf(orderId))
-                .orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order with ID " + orderId + " not found"));
-
+    private void checkOrderStatus(Order order) {
         if (order.isPaid()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,  "Your order is already paid. You cannot add the next product." );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Your order is already paid. You cannot add more products.");
         }
+    }
 
-        Product product = productRepository.findById(addToOrderRequestDTO.getProductId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product with ID " + addToOrderRequestDTO.getProductId() + " not found"));
+    private Order findOrderById(Integer orderId) {
+        return orderRepository.findById(Long.valueOf(orderId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order with ID " + orderId + " not found"));
+    }
 
-        if (product.getAmount() < addToOrderRequestDTO.getAmount()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for product ID " + addToOrderRequestDTO.getProductId());
+    private Product findProductById(Integer productId) {
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product with ID " + productId + " not found"));
+    }
+
+    private void checkSufficientProductQuantity(Product product, Integer amount) {
+        if (product.getAmount() < amount) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient stock for product ID " + product.getId());
         }
+    }
 
-        // Najdeme produkt v objednávce
+    private void updateOrCreateOrderItem(Order order, Product product, Integer amount){
         Optional<OrderProduct> existingOrderProduct = order.getOrderProducts().stream()
-                .filter(op -> op.getProductId().equals(addToOrderRequestDTO.getProductId()))
+                .filter(op -> op.getProductId().equals(product.getId()))
                 .findFirst();
 
         if (existingOrderProduct.isPresent()) {
-            // Produkt už existuje – aktualizujeme množství
             OrderProduct orderProduct = existingOrderProduct.get();
-            orderProduct.setAmount(orderProduct.getAmount() + addToOrderRequestDTO.getAmount());
+            orderProduct.setAmount(orderProduct.getAmount() + amount);
             orderProductRepository.save(orderProduct);
         } else {
-            // Produkt neexistuje – přidáme nový záznam
-            OrderProduct orderProduct = new OrderProduct(addToOrderRequestDTO.getProductId(), addToOrderRequestDTO.getAmount(), order);
+            OrderProduct orderProduct = new OrderProduct(product.getId(), amount, order);
             order.addProduct(orderProduct);
             orderProductRepository.save(orderProduct);
         }
+    }
 
-        // Odečteme množství z celkového skladu
-        product.setAmount(product.getAmount() - addToOrderRequestDTO.getAmount());
+    private void updateProductQuantity(Product product, Integer amount) {
+        product.setAmount(product.getAmount() - amount);
         productRepository.save(product);
     }
 
 
-
-
-
-
 }
+
+
+//    // Pridanie produktu do objednávky   // this is not using. We are using addProductToOrderDTO !!!
+//    public void addProductToOrder(Integer orderId, Integer productId, Integer amount) {
+//        Order order = orderRepository.findById(Long.valueOf(orderId))
+//                .orElseThrow(() -> new RuntimeException("Order not found"));
+//        // Hledáme, zda už produkt v objednávce existuje
+//        Optional<OrderProduct> existingOrderProduct = order.getOrderProducts().stream()
+//                .filter(op -> op.getProductId().equals(productId))
+//                .findFirst();
+//
+//        if (existingOrderProduct.isPresent()) {
+//            // Produkt už existuje – aktualizujeme množství
+//            OrderProduct orderProduct = existingOrderProduct.get();
+//            orderProduct.setAmount(orderProduct.getAmount() + amount);
+//            orderProductRepository.save(orderProduct);
+//        } else {
+//            // Produkt neexistuje – přidáme nový záznam
+//            OrderProduct orderProduct = new OrderProduct(productId, amount, order);
+//            order.addProduct(orderProduct);
+//            orderProductRepository.save(orderProduct);
+//        }
+//    }
+
+
+
+
+
+
+
 
 
